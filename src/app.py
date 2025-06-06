@@ -8,7 +8,7 @@ from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
-from models import db, User, People,Planets,FavouritePlanet
+from models import db, User, People,Planets,FavouritePlanet,FavouritePeople
 from sqlalchemy import select
 #from models import Person
 
@@ -77,6 +77,9 @@ def handle_people_for_id(people_id):
 @app.route ('/peoples', methods=['POST'])
 def handle_create_people():
     body = request.get_json()
+    if not body:
+        return jsonify({"error": "Request body must be JSON"}), 400
+    
     required_fields = ['name', 'age', 'gender', 'height', 'weight', 'image', 'planet_of_birth']
     missing_fields = [field for field in required_fields if field not in body]
 
@@ -118,13 +121,16 @@ def handle_planet_for_id(planets_id):
     planet = db.session.get(Planets, planets_id) 
     print(planet)
     response_body={
-            "PLanet": planet
+            "Planet": planet
          }
     return jsonify(response_body),200
 
 @app.route ('/planets', methods=['POST'])
 def handle_create_planet():
     body = request.get_json()
+    if not body:
+        return jsonify({"error": "Request body must be JSON"}), 400
+    
     required_fields = ['name', 'description', 'galaxy', 'population', 'gravity', 'image']
     missing_fields = [field for field in required_fields if field not in body]
 
@@ -148,12 +154,109 @@ def handle_create_planet():
 
 
 ### ----------------------FAVOURITE PLANETS---------------
-@app.route('/favoritePlanet', methods=['GET'])
-def handle_favorite_by_user():
-    all_favorites_planets = db.session.execute(select(FavouritePlanet).where(user_id=))
-    person = db.session.execute(select(Person).where(Person.id == 3)).scalar_one_or_none()
+@app.route('/favoritePlanet/<int:user_id>', methods=['GET'])
+def handle_favorite_by_user(user_id):
+    all_favorite_planets = db.session.execute(
+        select(FavouritePlanet).where(FavouritePlanet.user_id == user_id)
+    ).scalars().all()
+    all_favorite_planets = list(map(lambda favorite : favorite.serialize(),all_favorite_planets))
+
+  
+    response_body={
+            "FavoritePlanets": all_favorite_planets
+         }
+    print(all_favorite_planets)
+    return jsonify(response_body),200
 
 
+@app.route('/favoritePlanet/<int:user_id>', methods=['POST'])
+def handle_add_favorite_planet(user_id):
+    body = request.get_json()
+
+    if not body:
+        return jsonify({"error": "Request body must be JSON"}), 400
+    
+    required_fields = ['planet_id', 'user_id']
+    missing_fields = [field for field in required_fields if field not in body]
+
+    if missing_fields:
+        return jsonify({"error": f"Missing fields: {', '.join(missing_fields)}"}), 400
+    
+    
+
+    if user_id != body['user_id']:
+        return jsonify({"error": "User ID in URL and body do not match"}), 400
+
+    existing_favorite = db.session.execute(
+        select(FavouritePlanet).where(
+            (FavouritePlanet.user_id == body['user_id']) &
+            (FavouritePlanet.planet_id == body['planet_id'])
+        )
+    ).scalar_one_or_none()
+
+    if existing_favorite:
+        return jsonify({"message": "Planet already marked as favorite"}), 200
+    
+    favoritePlanet = FavouritePlanet()
+    favoritePlanet.planet_id = body['planet_id']
+    favoritePlanet.user_id = body['user_id']
+    db.session.add(favoritePlanet)
+
+    db.session.commit()  
+    return jsonify({"message": "Favorite planet added successfully"}), 201
+
+### ----------------------FAVOURITE PEOPLE---------------
+@app.route('/favoritePeople/<int:user_id>', methods=['GET'])
+def handle_favorite_people_by_user(user_id):
+    favorite_people = db.session.execute(
+        select(FavouritePeople).where(FavouritePeople.user_id == user_id)
+    ).scalars().all()
+    favorite_people = list(map(lambda favorite : favorite.serialize(),favorite_people))
+
+  
+    response_body={
+            "Favorite_people": favorite_people
+         }
+    print(favorite_people)
+    return jsonify(response_body),200
+
+
+@app.route('/favoritePeople/<int:user_id>', methods=['POST'])
+def handle_add_favorite_people(user_id):
+    body = request.get_json()
+
+    if not body:
+        return jsonify({"error": "Request body must be JSON"}), 400
+    
+    required_fields = ['people_id', 'user_id']
+    missing_fields = [field for field in required_fields if field not in body]
+
+    if missing_fields:
+        return jsonify({"error": f"Missing fields: {', '.join(missing_fields)}"}), 400
+    
+    
+
+    if user_id != body['user_id']:
+        return jsonify({"error": "User ID in URL and body do not match"}), 400
+
+    existing_favorite = db.session.execute(
+        select(FavouritePeople).where(
+            (FavouritePeople.user_id == body['user_id']) &
+            (FavouritePeople.people_id == body['people_id'])
+        )
+    ).scalar_one_or_none()
+
+    if existing_favorite:
+        return jsonify({"message": "People already marked as favorite"}), 200
+    
+    favoritePeople = FavouritePeople()
+    favoritePeople.people_id = body['people_id']
+    favoritePeople.user_id = body['user_id']
+    
+    
+    db.session.add(favoritePeople)
+    db.session.commit()  
+    return jsonify({"message": "Favorite people added successfully"}), 201
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':
