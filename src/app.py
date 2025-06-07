@@ -68,9 +68,10 @@ def handle_people():
 @app.route('/peoples/<int:people_id>', methods=['GET'])
 def handle_people_for_id(people_id):
     people = db.session.get(People, people_id) 
-    print(people)
+    if people is None:
+     return jsonify({"error": "Person not found"}), 404
     response_body={
-            "People": people
+            "People": people.serialize()
          }
     return jsonify(response_body),200
 
@@ -99,7 +100,7 @@ def handle_create_people():
     db.session.add(people)
     db.session.commit()  
     
-    return jsonify({"ok": True}), 201
+    return jsonify({"ok": "Person add to list of people"}), 201
 
 
 
@@ -137,6 +138,27 @@ def handle_edit_people(people_id):
     db.session.commit()
 
     return jsonify({"message": "Person updated successfully"}), 200
+
+@app.route('/peoples/<int:people_id>', methods = ['DELETE'])
+def handle_delete_people(people_id):
+    people = db.session.get(People,people_id)
+    if people is None:
+        return ({"Error":"People'id not found"}),404
+
+    search_people = db.session.execute(select(People).where(People.id == people.id)).scalar_one_or_none()
+
+    
+    if search_people is None:
+     return jsonify({"error": "Favorite planpeoplet not found"}), 404
+   
+    db.session.delete(search_people)
+    db.session.commit()
+
+    return jsonify({"message": "People deleted"}), 200
+    
+
+    
+    
 
 
 
@@ -219,7 +241,23 @@ def handle_edit_planet(planet_id):
 
     return jsonify({"message": "Planet updated successfully"}), 200
 
+@app.route('/planets/<int:planet_id>', methods = ['DELETE'])
+def handle_delete_planet(planet_id):
+    planet = db.session.get(Planets,planet_id)
+    if planet is None:
+        return ({"Error": "Planets'id not found"}),404
 
+    search_planet = select(Planets).where(
+        Planets.id == planet.id
+        ).scalar_one_or_none()
+    
+    if search_planet is None:
+     return jsonify({"error": "Favorite planet not found"}), 404
+   
+    db.session.delete(search_planet)
+    db.session.commit()
+
+    return jsonify({"message": "Favorite planet deleted"}), 200
 
 
 ### ----------------------FAVOURITE PLANETS---------------
