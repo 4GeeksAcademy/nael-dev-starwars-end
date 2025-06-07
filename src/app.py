@@ -103,6 +103,43 @@ def handle_create_people():
 
 
 
+@app.route ('/peoples/<int:people_id>',methods=['PUT'])
+def handle_edit_people(people_id):
+   
+    body = request.get_json()
+    
+    if not body:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
+    # Buscar persona existente
+    people_exist = select(People).where(People.id == people_id)
+    person = db.session.execute(people_exist).scalar_one_or_none()
+
+    if person is None:
+        return jsonify({"error": "Person not found"}), 404
+
+    # Actualizar solo los campos presentes en el body
+    if 'name' in body:
+        person.name = body['name']
+    if 'age' in body:
+        person.age = body['age']
+    if 'gender' in body:
+        person.gender = body['gender']
+    if 'height' in body:
+        person.height = body['height']
+    if 'weight' in body:
+        person.weight = body['weight']
+    if 'image' in body:
+        person.image = body['image']
+    if 'planet_of_birth' in body:
+        person.planet_of_birth = body['planet_of_birth']
+
+    db.session.commit()
+
+    return jsonify({"message": "Person updated successfully"}), 200
+
+
+
 ### ----------------------PLANETS---------------
 
 @app.route('/planets',methods=['GET'])
@@ -151,6 +188,38 @@ def handle_create_planet():
     db.session.commit()  
     
     return jsonify({"ok": True}), 201
+
+@app.route('/planet/<int:planet_id>',methods= ['PUT'])
+def handle_edit_planet(planet_id):
+    body = request.get_json()
+    if not body:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
+    # Buscar persona existente
+    planet_exist = select(Planets).where(Planets.id == planet_id)
+    planet = db.session.execute(planet_exist).scalar_one_or_none()
+
+    if planet is None:
+        return jsonify({"error": "Planet not found"}), 404
+
+    # Actualizar solo los campos presentes en el body
+    if 'name' in body:
+        planet.name = body['name']
+    if 'description' in body:
+        planet.description = body['description']
+    if 'galaxy' in body:
+        planet.galaxy = body['galaxy']
+    if 'population' in body:
+        planet.population = body['population']
+    if 'image' in body:
+        planet.image = body['image']
+   
+
+    db.session.commit()
+
+    return jsonify({"message": "Planet updated successfully"}), 200
+
+
 
 
 ### ----------------------FAVOURITE PLANETS---------------
@@ -205,6 +274,28 @@ def handle_add_favorite_planet(user_id):
     db.session.commit()  
     return jsonify({"message": "Favorite planet added successfully"}), 201
 
+
+
+@app.route('/favoritePlanet/<int:planet_id>/<int:user_id>', methods=['DELETE'])
+def handle_delete_by_user(user_id,planet_id):
+   
+   user = db.session.get(User, user_id)
+   if user is None:
+       return jsonify({"error": " The id of user not exist"}),404
+   
+   search_fav = select(FavouritePlanet).where(
+        FavouritePlanet.user_id == user_id,
+        FavouritePlanet.planet_id == planet_id
+    )
+   fav_result = db.session.execute(search_fav).scalar_one_or_none()
+   if fav_result is None:
+     return jsonify({"error": "Favorite planet not found"}), 404
+   
+   db.session.delete(fav_result)
+   db.session.commit()
+
+   return jsonify({"message": "Favorite planet deleted"}), 200
+
 ### ----------------------FAVOURITE PEOPLE---------------
 @app.route('/favoritePeople/<int:user_id>', methods=['GET'])
 def handle_favorite_people_by_user(user_id):
@@ -257,6 +348,29 @@ def handle_add_favorite_people(user_id):
     db.session.add(favoritePeople)
     db.session.commit()  
     return jsonify({"message": "Favorite people added successfully"}), 201
+
+@app.route('/favoritePeople/<int:user_id>/<int:people_id>', methods=['DELETE'])
+def handle_delete_fav_by_user(user_id,people_id):
+   
+   user = db.session.get(User, user_id)
+   if user is None:
+       return jsonify({"error": " The id of user not exist"}),404
+   people = db.session.get(People,people_id)
+   if people is None:
+       return jsonify({"error": "The id of people not exist"}),404
+   
+   search_fav = select(FavouritePeople).where(
+        FavouritePeople.user_id == user_id,
+        FavouritePeople.people_id == people_id
+    )
+   fav_result = db.session.execute(search_fav).scalar_one_or_none()
+   if fav_result is None:
+     return jsonify({"error": "Favorite planet not found"}), 404
+   
+   db.session.delete(fav_result)
+   db.session.commit()
+
+   return jsonify({"message": "Favorite people deleted"}), 200
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':
