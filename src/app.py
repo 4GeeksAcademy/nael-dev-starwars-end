@@ -142,16 +142,11 @@ def handle_edit_people(people_id):
 @app.route('/peoples/<int:people_id>', methods = ['DELETE'])
 def handle_delete_people(people_id):
     people = db.session.get(People,people_id)
+  
     if people is None:
-        return ({"Error":"People'id not found"}),404
-
-    search_people = db.session.execute(select(People).where(People.id == people.id)).scalar_one_or_none()
-
-    
-    if search_people is None:
      return jsonify({"error": "Favorite planpeoplet not found"}), 404
    
-    db.session.delete(search_people)
+    db.session.delete(people)
     db.session.commit()
 
     return jsonify({"message": "People deleted"}), 200
@@ -176,11 +171,12 @@ def handle_planet():
     return jsonify(response_body),200
 
 @app.route('/planets/<int:planet_id>', methods=['GET'])
-def handle_planet_for_id(planets_id):
-    planet = db.session.get(Planets, planets_id) 
-    print(planet)
+def handle_planet_for_id(planet_id):
+    planet = db.session.get(Planets, planet_id) 
+    if planet is None:
+        return jsonify({"error": "Planet not found"}), 404
     response_body={
-            "Planet": planet
+            "Planet": planet.serialize()
          }
     return jsonify(response_body),200
 
@@ -209,9 +205,9 @@ def handle_create_planet():
     db.session.add(planet)
     db.session.commit()  
     
-    return jsonify({"ok": True}), 201
+    return jsonify({"ok": "Planet add to Planets"}), 201
 
-@app.route('/planet/<int:planet_id>',methods= ['PUT'])
+@app.route('/planets/<int:planet_id>',methods= ['PUT'])
 def handle_edit_planet(planet_id):
     body = request.get_json()
     if not body:
@@ -241,23 +237,28 @@ def handle_edit_planet(planet_id):
 
     return jsonify({"message": "Planet updated successfully"}), 200
 
-@app.route('/planets/<int:planet_id>', methods = ['DELETE'])
+@app.route('/planets/<int:planet_id>', methods=['DELETE'])
 def handle_delete_planet(planet_id):
-    planet = db.session.get(Planets,planet_id)
+    planet = db.session.get(Planets, planet_id)
     if planet is None:
-        return ({"Error": "Planets'id not found"}),404
+        return jsonify({"error": "Planet ID not found"}), 404
 
-    search_planet = select(Planets).where(
-        Planets.id == planet.id
-        ).scalar_one_or_none()
-    
-    if search_planet is None:
-     return jsonify({"error": "Favorite planet not found"}), 404
-   
-    db.session.delete(search_planet)
+
+    fav_exists = db.session.execute(
+        select(FavouritePlanet).where(FavouritePlanet.planet_id == planet_id)
+    ).first()
+
+    people_exist = db.session.execute(
+        select(People).where(People.planet_of_birth == planet_id)
+    ).first()
+
+    if fav_exists or people_exist:
+        return jsonify({"error": "Cannot delete planet with relationships"}), 400
+
+    db.session.delete(planet)
     db.session.commit()
 
-    return jsonify({"message": "Favorite planet deleted"}), 200
+    return jsonify({"message": "Planet deleted successfully"}), 200
 
 
 ### ----------------------FAVOURITE PLANETS---------------

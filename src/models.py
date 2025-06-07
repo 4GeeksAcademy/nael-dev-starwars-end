@@ -28,7 +28,7 @@ class FavouritePeople(db.Model):
     people_id: Mapped[int] = mapped_column(ForeignKey("people.id"))
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
-   
+
     user: Mapped["User"] = relationship(back_populates="user_favourites_people")
     people: Mapped["People"]= relationship(back_populates="peoples_favorites")
 
